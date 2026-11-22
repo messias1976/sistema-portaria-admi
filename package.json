@@ -1,0 +1,12 @@
+{
+  "name": "portaria-admi",
+  "version": "1.0.0",
+  "description": "Sistema de controle de portaria e projeção vertical para a ADMI - Assembleia de Deus Ministério de Itatiba",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

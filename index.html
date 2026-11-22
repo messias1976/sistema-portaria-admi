@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Portaria - ADMI</title>
+    <!-- Biblioteca PDF.js para renderizar páginas de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        /* =========================================================
+           1. VARIÁVEIS E ESTILOS DO PAINEL DO OPERADOR (NOTEBOOK)
+           ========================================================= */
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #2563eb;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --gold: #eab308;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: #020617;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--gold);
+        }
+
+        header h1 {
+            font-size: 1.1rem;
+            color: var(--gold);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #relogio-operador {
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: var(--bg-card);
+            padding: 5px 12px;
+            border-radius: 6px;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 300px;
+            gap: 15px;
+            padding: 15px;
+            height: calc(100vh - 60px);
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+
+        .card h2 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: var(--gold);
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+        }
+
+        /* =========================================================
+           2. CADASTRO (CRUD) E BARRA DE ROLAGEM
+           ========================================================= */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        input, select {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #475569;
+            background-color: #0f172a;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.85; }
+        .btn-primary { background-color: var(--primary); }
+        .btn-success { background-color: var(--success); }
+        .btn-warning { background-color: var(--warning); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-gold { background-color: var(--gold); color: #000; }
+
+        .lista-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .lista-scroll::-webkit-scrollbar { width: 8px; }
+        .lista-scroll::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
+        .lista-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+        .item-lista {
+            background-color: #0f172a;
+            padding: 10px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid var(--primary);
+        }
+
+        .item-info strong { display: block; font-size: 0.95rem; }
+        .item-info span { font-size: 0.8rem; color: var(--text-muted); }
+
+        .item-acoes {
+            display: flex;
+            gap: 5px;
+        }
+
+        .item-acoes button { padding: 5px 8px; font-size: 0.8rem; }
+
+        /* =========================================================
+           3. CRONÔMETRO E MÍDIA
+           ========================================================= */
+        .cronometro-box {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        #display-cronometro {
+            font-size: 2.2rem;
+            font-weight: bold;
+            margin: 8px 0;
+            font-family: monospace;
+        }
+
+        .cronometro-botoes {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .midia-box {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+        }
+
+        #controles-pdf {
+            display: none;
+            gap: 6px;
+            align-items: center;
+            justify-content: space-between;
+            background: #0f172a;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        /* =========================================================
+           4. ESPELHO AO VIVO DA TV VERTICAL (9:16)
+           ========================================================= */
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+        }
+
+        .tv-frame {
+            width: 225px;
+            height: 400px;
+            background-color: #020617;
+            border: 4px solid #475569;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-topo {
+            font-size: 0.65rem;
+            color: var(--gold);
+            border-bottom: 1px solid #334155;
+            padding-bottom: 4px;
+        }
+
+        .preview-centro {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 5px;
+        }
+
+        .preview-centro img, .preview-centro video {
+            max-width: 100%;
+            max-height: 240px;
+            border-radius: 4px;
+        }
+
+        .preview-centro canvas {
+            max-width: 100%;
+            max-height: 240px;
+            width: auto !important;
+            height: auto !important;
+            border-radius: 4px;
+            background: #ffffff;
+        }
+
+        .preview-cronometro {
+            background: rgba(220, 38, 38, 0.2);
+            border: 1px solid var(--danger);
+            color: #fca5a5;
+            padding: 4px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>PORTARIA | ADMI - Assembleia de Deus Ministério de Itatiba</h1>
+        <div class="header-controls">
+            <span id="relogio-operador">00:00:00</span>
+            <button class="btn-gold" onclick="abrirTelaTV()">📺 Abrir Tela da TV</button>
+            <button class="btn-danger" onclick="limparTelaTV()">🧹 Limpar TV (Tela Descanso)</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>1. Cadastro (Visitantes / Igrejas / Louvor)</h2>
+            
+            <form id="form-cadastro" class="form-group">
+                <input type="hidden" id="edit-id">
+                <select id="categoria" required>
+                    <option value="Visitante">👤 Visitante</option>
+                    <option value="Igreja Visitante">⛪ Igreja Visitante</option>
+                    <option value="Grupo de Louvor">🎵 Grupo / Cantor de Louvor</option>
+                </select>
+                <input type="text" id="nome" placeholder="Nome da pessoa, igreja ou grupo..." required>
+                <input type="text" id="observacao" placeholder="Cidade ou detalhe (opcional)">
+                <div style="display: flex; gap: 8px;">
+                    <button type="submit" class="btn-primary" style="flex: 1;" id="btn-salvar">Salvar Registro</button>
+                    <button type="button" class="btn-warning" id="btn-cancelar" style="display:none;" onclick="cancelarEdicao()">Cancelar</button>
+                </div>
+            </form>
+
+            <input type="text" id="busca" placeholder="🔍 Filtrar lista..." onkeyup="renderizarLista()" style="margin-bottom: 10px;">
+
+            <div class="lista-scroll" id="lista-registros"></div>
+        </section>
+
+        <section class="card">
+            <h2>2. Cronômetro de Pregação</h2>
+            <div class="cronometro-box">
+                <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
+                    <label for="minutos-input" style="font-size: 0.85rem;">Minutos:</label>
+                    <input type="number" id="minutos-input" value="40" min="1" max="180" style="width: 70px; text-align: center;">
+                    <button class="btn-primary" onclick="definirTempo()">Definir</button>
+                </div>
+                
+                <div id="display-cronometro">40:00</div>
+                
+                <div class="cronometro-botoes">
+                    <button class="btn-success" onclick="iniciarCronometro()">▶ Iniciar</button>
+                    <button class="btn-warning" onclick="pausarCronometro()">⏸ Pausar</button>
+                    <button class="btn-danger" onclick="zerarCronometro()">⏹ Zerar</button>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button id="btn-toggle-tv-cronometro" class="btn-primary" style="width: 100%;" onclick="alternarVisibilidadeCronometro()">
+                        👁️ Mostrar Cronômetro na TV (Atualmente Oculto)
+                    </button>
+                </div>
+            </div>
+
+            <h2>3. Apresentar Arquivos (Fotos, Vídeos, PDF)</h2>
+            <div class="midia-box">
+                <p style="font-size: 0.8rem; color: var(--text-muted);">
+                    Selecione imagem, vídeo (.mp4) ou PDF para projetar na TV vertical:
+                </p>
+                <input type="file" id="arquivo-upload" accept="image/*,video/*,application/pdf,.pdf">
+                <button class="btn-success" onclick="projetarArquivo()">📤 Projetar Arquivo na TV</button>
+                <button class="btn-warning" onclick="pausarVideoTV()">⏯ Pausar / Tocar Vídeo na TV</button>
+
+                <div id="controles-pdf">
+                    <button type="button" class="btn-primary" onclick="mudarPaginaPdf(-1)">◀ Ant.</button>
+                    <span id="info-pagina-pdf" style="font-size: 0.85rem;">Pág. 1/1</span>
+                    <button type="button" class="btn-primary" onclick="mudarPaginaPdf(1)">Próx. ▶</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>4. Espelho da TV (Vertical 35")</h2>
+            <div class="preview-container">
+                <div class="tv-frame">
+                    <div class="preview-topo">
+                        <strong>ADMI - Itatiba</strong><br>
+                        <span id="preview-relogio">00:00:00</span>
+                    </div>
+                    
+                    <div class="preview-centro" id="preview-conteudo">
+                        <p style="color: #64748b; font-size: 0.8rem;">Tela de Descanso Ativa</p>
+                    </div>
+
+                    <div class="preview-cronometro" id="preview-cronometro">
+                        Tempo: <span id="preview-tempo-texto">40:00</span>
+                    </div>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; text-align: center;">
+                    Este quadro mostra o que está na TV agora.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        /* =========================================================
+           COMUNICAÇÃO COM A SEGUNDA TELA E RENDERIZAÇÃO DE PDF
+           ========================================================= */
+        const canalTV = new BroadcastChannel('canal_igreja_admi');
+
+        let estadoAtual = {
+            tipo: 'descanso',
+            categoria: '',
+            titulo: '',
+            subtitulo: '',
+            arquivoUrl: '',
+            pdfBytes: null,
+            paginaPdf: 1,
+            totalPaginasPdf: 1,
+            mostrarCronometro: false,
+            tempoFormatado: '40:00',
+            alertaTempo: false
+        };
+
+        let pdfDocOperador = null;
+
+        function atualizarRelogio() {
+            const agora = new Date();
+            const hora = agora.toLocaleTimeString('pt-BR');
+            document.getElementById('relogio-operador').innerText = hora;
+            document.getElementById('preview-relogio').innerText = hora;
+        }
+        setInterval(atualizarRelogio, 1000);
+        atualizarRelogio();
+
+        function abrirTelaTV() {
+            window.open('tv.html', 'TelaTV_ADMI', 'width=500,height=850');
+            setTimeout(() => sincronizarTV(), 500);
+        }
+
+        function sincronizarTV() {
+            const payload = {
+                ...estadoAtual,
+                pdfBytes: estadoAtual.pdfBytes ? estadoAtual.pdfBytes.slice(0) : null
+            };
+            canalTV.postMessage({ acao: 'atualizar', dados: payload });
+            atualizarPreviewOperador();
+        }
+
+        async function renderizarPreviewPdf() {
+            const container = document.getElementById('preview-conteudo');
+            container.innerHTML = `<canvas id="canvas-pdf-preview"></canvas>`;
+            const canvas = document.getElementById('canvas-pdf-preview');
+            const ctx = canvas.getContext('2d');
+
+            if (!pdfDocOperador || !estadoAtual.pdfBytes) return;
+
+            const page = await pdfDocOperador.getPage(estadoAtual.paginaPdf);
+            const viewport = page.getViewport({ scale: 0.7 });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        }
+
+        function atualizarPreviewOperador() {
+            const container = document.getElementById('preview-conteudo');
+            
+            if (estadoAtual.tipo === 'descanso') {
+                container.innerHTML = `<p style="color: #eab308; font-weight: bold; font-size: 0.9rem;">SEJAM BEM-VINDOS</p><p style="color: #94a3b8; font-size: 0.7rem;">ADMI - Itatiba</p>`;
+            } else if (estadoAtual.tipo === 'texto') {
+                container.innerHTML = `
+                    <span style="background:#2563eb; padding:2px 6px; border-radius:4px; font-size:0.65rem; margin-bottom:5px;">${estadoAtual.categoria}</span>
+                    <strong style="font-size:1rem; color:#fff;">${estadoAtual.titulo}</strong>
+                    <span style="font-size:0.75rem; color:#cbd5e1; margin-top:4px;">${estadoAtual.subtitulo}</span>
+                `;
+            } else if (estadoAtual.tipo === 'imagem') {
+                container.innerHTML = `<img src="${estadoAtual.arquivoUrl}" alt="Preview">`;
+            } else if (estadoAtual.tipo === 'video') {
+                container.innerHTML = `<video src="${estadoAtual.arquivoUrl}" muted autoplay loop></video>`;
+            } else if (estadoAtual.tipo === 'pdf') {
+                renderizarPreviewPdf().catch(() => {
+                    container.innerHTML = `<p style="color:#f87171; font-size:0.75rem;">Erro na prévia do PDF</p>`;
+                });
+            }
+
+            const boxCrono = document.getElementById('preview-cronometro');
+            boxCrono.style.display = estadoAtual.mostrarCronometro ? 'block' : 'none';
+            document.getElementById('preview-tempo-texto').innerText = estadoAtual.tempoFormatado;
+        }
+
+        function limparTelaTV() {
+            estadoAtual.tipo = 'descanso';
+            atualizarControlesPdf();
+            sincronizarTV();
+        }
+
+        /* =========================================================
+           CRUD COM LOCALSTORAGE
+           ========================================================= */
+        let registros = JSON.parse(localStorage.getItem('admi_registros')) || [];
+
+        function salvarNoStorage() {
+            localStorage.setItem('admi_registros', JSON.stringify(registros));
+            renderizarLista();
+        }
+
+        document.getElementById('form-cadastro').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const categoria = document.getElementById('categoria').value;
+            const nome = document.getElementById('nome').value;
+            const observacao = document.getElementById('observacao').value;
+
+            if (id) {
+                const index = registros.findIndex(r => r.id == id);
+                registros[index] = { id: Number(id), categoria, nome, observacao };
+                cancelarEdicao();
+            } else {
+                registros.unshift({
+                    id: Date.now(),
+                    categoria,
+                    nome,
+                    observacao
+                });
+            }
+
+            this.reset();
+            salvarNoStorage();
+        });
+
+        function renderizarLista() {
+            const listaEl = document.getElementById('lista-registros');
+            const termoBusca = document.getElementById('busca').value.toLowerCase();
+            listaEl.innerHTML = '';
+
+            const filtrados = registros.filter(item => 
+                item.nome.toLowerCase().includes(termoBusca) || 
+                item.categoria.toLowerCase().includes(termoBusca)
+            );
+
+            filtrados.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'item-lista';
+                div.innerHTML = `
+                    <div class="item-info">
+                        <strong>${item.nome}</strong>
+                        <span>${item.categoria} ${item.observacao ? '• ' + item.observacao : ''}</span>
+                    </div>
+                    <div class="item-acoes">
+                        <button class="btn-success" onclick="projetarTexto(${item.id})" title="Projetar na TV">📺</button>
+                        <button class="btn-warning" onclick="editarRegistro(${item.id})" title="Editar">✏️</button>
+                        <button class="btn-danger" onclick="excluirRegistro(${item.id})" title="Excluir">🗑️</button>
+                    </div>
+                `;
+                listaEl.appendChild(div);
+            });
+        }
+
+        function editarRegistro(id) {
+            const item = registros.find(r => r.id === id);
+            document.getElementById('edit-id').value = item.id;
+            document.getElementById('categoria').value = item.categoria;
+            document.getElementById('nome').value = item.nome;
+            document.getElementById('observacao').value = item.observacao;
+            
+            document.getElementById('btn-salvar').innerText = 'Atualizar';
+            document.getElementById('btn-cancelar').style.display = 'inline-block';
+        }
+
+        function cancelarEdicao() {
+            document.getElementById('form-cadastro').reset();
+            document.getElementById('edit-id').value = '';
+            document.getElementById('btn-salvar').innerText = 'Salvar Registro';
+            document.getElementById('btn-cancelar').style.display = 'none';
+        }
+
+        function excluirRegistro(id) {
+            if (confirm('Deseja realmente excluir este registro?')) {
+                registros = registros.filter(r => r.id !== id);
+                salvarNoStorage();
+            }
+        }
+
+        function projetarTexto(id) {
+            const item = registros.find(r => r.id === id);
+            estadoAtual.tipo = 'texto';
+            estadoAtual.categoria = item.categoria;
+            estadoAtual.titulo = item.nome;
+            estadoAtual.subtitulo = item.observacao;
+            atualizarControlesPdf();
+            sincronizarTV();
+        }
+
+        /* =========================================================
+           UPLOAD E PROJEÇÃO DE ARQUIVOS (IMAGENS, VÍDEOS, PDF)
+           ========================================================= */
+        async function projetarArquivo() {
+            const input = document.getElementById('arquivo-upload');
+            if (!input.files || input.files.length === 0) {
+                alert('Selecione um arquivo primeiro!');
+                return;
+            }
+
+            const arquivo = input.files[0];
+            const ehPdf = arquivo.type === 'application/pdf' || arquivo.name.toLowerCase().endsWith('.pdf');
+
+            if (ehPdf) {
+                try {
+                    const buffer = await arquivo.arrayBuffer();
+                    const copiaParaPdfJs = buffer.slice(0);
+                    pdfDocOperador = await pdfjsLib.getDocument({
+                        data: new Uint8Array(copiaParaPdfJs),
+                        disableWorker: true
+                    }).promise;
+
+                    estadoAtual.tipo = 'pdf';
+                    estadoAtual.pdfBytes = buffer;
+                    estadoAtual.paginaPdf = 1;
+                    estadoAtual.totalPaginasPdf = pdfDocOperador.numPages;
+                    atualizarControlesPdf();
+                    sincronizarTV();
+                } catch (err) {
+                    alert('Não foi possível ler este PDF. Verifique se o arquivo não está protegido por senha.');
+                }
+                return;
+            }
+
+            atualizarControlesPdf();
+            const urlTemporaria = URL.createObjectURL(arquivo);
+
+            if (arquivo.type.startsWith('image/')) {
+                estadoAtual.tipo = 'imagem';
+            } else if (arquivo.type.startsWith('video/')) {
+                estadoAtual.tipo = 'video';
+            } else {
+                alert('Formato não suportado para projeção direta. Use Imagem, Vídeo MP4 ou PDF.');
+                return;
+            }
+
+            estadoAtual.arquivoUrl = urlTemporaria;
+            sincronizarTV();
+        }
+
+        function atualizarControlesPdf() {
+            const box = document.getElementById('controles-pdf');
+            if (estadoAtual.tipo === 'pdf') {
+                box.style.display = 'flex';
+                document.getElementById('info-pagina-pdf').innerText =
+                    `Pág. ${estadoAtual.paginaPdf}/${estadoAtual.totalPaginasPdf}`;
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        function mudarPaginaPdf(delta) {
+            if (!pdfDocOperador) return;
+            const novaPag = estadoAtual.paginaPdf + delta;
+            if (novaPag < 1 || novaPag > estadoAtual.totalPaginasPdf) return;
+            estadoAtual.paginaPdf = novaPag;
+            atualizarControlesPdf();
+            sincronizarTV();
+        }
+
+        function pausarVideoTV() {
+            canalTV.postMessage({ acao: 'toggle_video' });
+        }
+
+        /* =========================================================
+           CRONÔMETRO REGRESSIVO
+           ========================================================= */
+        let segundosRestantes = 40 * 60;
+        let intervaloCronometro = null;
+
+        function formatarTempo(segundos) {
+            const min = Math.floor(segundos / 60);
+            const seg = segundos % 60;
+            return `${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
+        }
+
+        function atualizarDisplayCronometro() {
+            const texto = formatarTempo(segundosRestantes);
+            document.getElementById('display-cronometro').innerText = texto;
+            estadoAtual.tempoFormatado = texto;
+            estadoAtual.alertaTempo = segundosRestantes <= 120 && segundosRestantes > 0;
+            sincronizarTV();
+        }
+
+        function definirTempo() {
+            pausarCronometro();
+            const mins = parseInt(document.getElementById('minutos-input').value) || 40;
+            segundosRestantes = mins * 60;
+            atualizarDisplayCronometro();
+        }
+
+        function iniciarCronometro() {
+            if (intervaloCronometro) return;
+            intervaloCronometro = setInterval(() => {
+                if (segundosRestantes > 0) {
+                    segundosRestantes--;
+                    atualizarDisplayCronometro();
+                } else {
+                    pausarCronometro();
+                }
+            }, 1000);
+        }
+
+        function pausarCronometro() {
+            clearInterval(intervaloCronometro);
+            intervaloCronometro = null;
+        }
+
+        function zerarCronometro() {
+            pausarCronometro();
+            segundosRestantes = 0;
+            atualizarDisplayCronometro();
+        }
+
+        function alternarVisibilidadeCronometro() {
+            estadoAtual.mostrarCronometro = !estadoAtual.mostrarCronometro;
+            const btn = document.getElementById('btn-toggle-tv-cronometro');
+            if (estadoAtual.mostrarCronometro) {
+                btn.innerText = '🙈 Ocultar Cronômetro da TV (Visível agora)';
+                btn.className = 'btn-danger';
+            } else {
+                btn.innerText = '👁️ Mostrar Cronômetro na TV (Atualmente Oculto)';
+                btn.className = 'btn-primary';
+            }
+            sincronizarTV();
+        }
+
+        renderizarLista();
+    </script>
+</body>
+</html>
